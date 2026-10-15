@@ -107,7 +107,7 @@ def sum_endpoint(
     if not dataset_files:
         raise HTTPException(
             status_code=503,
-            detail="Dataset vazio. Rode: python make_dataset.py",
+            detail="Dataset vazio. Rode: ./src/make_dataset.py",
         )
     start = time.perf_counter()
     chosen = random.sample(dataset_files, min(files, len(dataset_files)))

@@ -10,15 +10,19 @@ Requer Python 3.10+ e `python3-venv` (`sudo apt install python3-venv python3-pip
 
 ```bash
 ./build.sh                  # cria .venv e instala as dependências
-./make_dataset.sh           # gera o dataset em ./dataset 
-./run.sh                    # porta 8000
+./src/make_dataset.py       # gera o dataset em ./dataset
+./run.sh                    # porta 80
 ```
+
+O gerador também pode ser executado com `python3 src/make_dataset.py` ou `./.venv/bin/python src/make_dataset.py` depois do build. Ele usa apenas a biblioteca padrão do Python.
 
 Para testar na máquina local com um dataset pequeno:
 
 ```bash
-./make_dataset.sh --count 20 --min-mb 1 --max-mb 4
+./src/make_dataset.py --count 20 --min-mb 1 --max-mb 4
 ```
+
+O gerador aceita `--dir`, `--count`, `--min-mb`, `--max-mb` e `--seed`. O padrão é 200 arquivos de 5 a 15 MB; `DATASET_DIR` pode definir o diretório de saída.
 
 O dataset é lido na inicialização do servidor: se for gerado depois, reinicie o `./run.sh`.
 
@@ -26,7 +30,7 @@ Variáveis opcionais do `run.sh`:
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `PORT` | `8000` | Porta HTTP |
+| `PORT` | `80` | Porta HTTP |
 | `HOST` | `0.0.0.0` | Interface de escuta |
 | `WORKERS` | `1` | Processos do servidor (uvicorn `--workers`) |
 | `THREAD_LIMIT` | `40` | Requisições processadas em paralelo por worker |
@@ -47,29 +51,28 @@ Exemplo: `WORKERS=2 THREAD_LIMIT=8 PORT=8080 ./run.sh`
 | POST | `/write` | `size_kb` (padrão 1024), `fsync` (padrão `true`), `keep` (padrão `false`) | Grava um arquivo novo, com `fsync` opcional (escrita) |
 
 ```bash
-curl http://localhost:8000/health
-curl "http://localhost:8000/sum?files=3"
-curl "http://localhost:8000/sum?files=3&nocache=true"
-curl -X POST "http://localhost:8000/write?size_kb=4096"
+curl http://localhost/health
+curl "http://localhost/sum?files=3"
+curl "http://localhost/sum?files=3&nocache=true"
+curl -X POST "http://localhost/write?size_kb=4096"
 ```
 
 Resposta do `/sum`: lista com `file`, `bytes` e `sum` de cada arquivo, além de `total_bytes`, `nocache`
 e `elapsed_ms` (tempo gasto no handler). O `/write` devolve `file`, `bytes`, `sum`, `fsync`, `kept` e `elapsed_ms`.
 Parâmetros fora dos limites recebem `422`; `/sum` com dataset vazio recebe `503`.
 
-A documentação interativa fica em `http://localhost:8000/docs`.
+A documentação interativa fica em `http://localhost/docs`.
 
 ## Estrutura
 
 ```
 bytesum-api/
-├── build.sh            # cria .venv e instala dependências
-├── make_dataset.sh     # gera o dataset (repassa argumentos ao make_dataset.py)
-├── run.sh              # inicia o servidor
+├── build.sh            
+├── run.sh              
 ├── requirements.txt
 └── src/
-    ├── app.py          # API FastAPI
-    └── make_dataset.py # gerador de arquivos aleatórios
+    ├── app.py           
+    └── make_dataset.py  
 ```
 
 `dataset/` e `written/` são criados na raiz e não são versionados.
