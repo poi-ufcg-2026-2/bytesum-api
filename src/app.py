@@ -8,6 +8,7 @@ from pathlib import Path
 import anyio.to_thread
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 
 DATASET_DIR = Path(os.getenv("DATASET_DIR", "dataset"))
 WRITE_DIR = Path(os.getenv("WRITE_DIR", "written"))
@@ -38,6 +39,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="bytesum-api", lifespan=lifespan)
 
 
+@app.get("/", include_in_schema=False)
+def frontend():
+    return FileResponse(Path(__file__).with_name("bytesum-api.html"))
+
+
 def _drop_cache(fd: int) -> None:
     """Pede ao kernel para descartar as paginas do arquivo do page cache (Linux)."""
     if hasattr(os, "posix_fadvise"):
@@ -48,7 +54,7 @@ def sum_file(path: Path, nocache: bool) -> tuple[int, int]:
     """Le o arquivo em blocos e retorna (tamanho_em_bytes, soma_dos_bytes)."""
     total = 0
     size = 0
-    fd = os.open(path, os.O_RDONLY)
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
     try:
         if nocache:
             _drop_cache(fd)  

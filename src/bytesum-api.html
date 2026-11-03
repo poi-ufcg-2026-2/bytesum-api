@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101714">
+  <title>Bytesum · Operações de I/O</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101714; --panel:#17211c; --line:#2a3930; --muted:#9aada0; --text:#edf5ee; --green:#a5f078; --orange:#f1ad72; }
+    * { box-sizing:border-box }
+    body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 80% 0%,#26372a 0,transparent 42%),var(--bg); color:var(--text); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif }
+    main { width:min(1040px,calc(100% - 36px)); margin:0 auto; padding:48px 0 72px }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:34px }
+    .eyebrow { color:var(--green); font-size:12px; font-weight:750; letter-spacing:.14em; text-transform:uppercase }
+    h1 { margin:8px 0 5px; font-size:clamp(28px,5vw,42px); line-height:1.1; letter-spacing:-.04em }
+    .intro { margin:0; color:var(--muted) }
+    .status { display:flex; align-items:center; gap:9px; padding:9px 13px; border:1px solid var(--line); border-radius:99px; color:var(--muted); white-space:nowrap; font-size:13px }
+    .dot { width:8px; height:8px; border-radius:50%; background:#738077 }
+    .dot.ok { background:var(--green); box-shadow:0 0 12px #a5f07888 }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px }
+    .stat,.card { border:1px solid var(--line); background:#17211cdd; border-radius:14px }
+    .stat { padding:16px 18px }
+    .label { color:var(--muted); font-size:12px; letter-spacing:.04em }
+    .value { display:block; margin-top:5px; font-size:23px; font-weight:700; letter-spacing:-.03em }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .card { padding:22px }
+    .card-head { display:flex; align-items:center; gap:12px; margin-bottom:18px }
+    h2 { margin:0; font-size:18px; letter-spacing:-.02em }
+    .card-head p { margin:2px 0 0; color:var(--muted); font-size:13px }
+    label { display:block; margin:16px 0 7px; font-size:13px; font-weight:600 }
+    input[type=number] { width:100%; padding:11px 12px; color:var(--text); background:#0f1712; border:1px solid var(--line); border-radius:8px; font:inherit; outline:none }
+    input:focus { border-color:#85bd68 }
+    .check { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13px; font-weight:400 }
+    input[type=checkbox] { accent-color:var(--green); width:15px; height:15px }
+    button { width:100%; display:flex; justify-content:center; align-items:center; gap:9px; margin-top:19px; padding:11px 15px; border:0; border-radius:8px; background:var(--green); color:#172013; font:700 14px/1.5 ui-sans-serif,system-ui,sans-serif; cursor:pointer }
+    .write button { background:var(--orange) }
+    button:hover { filter:brightness(1.07) }
+    button:disabled { opacity:.6; cursor:wait }
+    .result-wrap { margin-top:18px }
+    .result-title { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; margin-bottom:7px }
+    pre { max-height:230px; overflow:auto; margin:0; padding:13px; border:1px solid var(--line); border-radius:8px; background:#0d1410; color:#cbd9ce; font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere }
+    .empty { color:#718176 }
+    footer { margin-top:22px; color:var(--muted); font-size:12px }
+    footer a { color:var(--green); text-decoration:none }
+    @media(max-width:680px) { main { padding-top:30px } header { flex-direction:column } .stats { grid-template-columns:1fr 1fr } .stats .stat:last-child { grid-column:span 2 } .grid { grid-template-columns:1fr } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><div class="eyebrow">Bytesum API</div><h1>Operações de disco</h1><p class="intro">Leia arquivos do dataset ou grave um arquivo de teste.</p></div>
+    <div class="status"><span class="dot" id="status-dot"></span><span id="status-text">Verificando API…</span></div>
+  </header>
+  <section class="stats" aria-label="Estado da aplicação">
+    <div class="stat"><span class="label">Arquivos</span><strong class="value" id="dataset-files">—</strong></div>
+    <div class="stat"><span class="label">Tamanho total</span><strong class="value" id="dataset-size">—</strong></div>
+    <div class="stat"><span class="label">Threads por processo</span><strong class="value" id="thread-limit">—</strong></div>
+  </section>
+  <section class="grid">
+    <article class="card">
+      <div class="card-head"><div><h2>Ler e somar</h2><p>Escolhe arquivos aleatórios do dataset.</p></div></div>
+      <form id="sum-form">
+        <label for="files">Arquivos para ler (1–20)</label>
+        <input id="files" name="files" type="number" min="1" max="20" value="1" required>
+        <label class="check"><input id="nocache" type="checkbox"> Ler sem cache do sistema</label>
+        <button type="submit">Ler e somar</button>
+      </form>
+      <div class="result-wrap"><div class="result-title"><span>Resultado</span><span id="sum-time"></span></div><pre class="empty" id="sum-result" aria-live="polite">O resultado aparecerá aqui.</pre></div>
+    </article>
+    <article class="card write">
+      <div class="card-head"><div><h2>Gravar arquivo</h2><p>Cria um arquivo de teste no disco.</p></div></div>
+      <form id="write-form">
+        <label for="size-kb">Tamanho (KB)</label>
+        <input id="size-kb" name="size_kb" type="number" min="1" max="65536" value="1024" required>
+        <label class="check"><input id="fsync" type="checkbox" checked> Confirmar gravação no disco (fsync)</label>
+        <label class="check"><input id="keep" type="checkbox"> Manter o arquivo após o teste</label>
+        <button type="submit">Gravar arquivo</button>
+      </form>
+      <div class="result-wrap"><div class="result-title"><span>Resultado</span><span id="write-time"></span></div><pre class="empty" id="write-result" aria-live="polite">O resultado aparecerá aqui.</pre></div>
+    </article>
+  </section>
+</main>
+<script>
+  const formatBytes = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB', 'TB'];
+    let value = bytes / 1024, unit = 0;
+    while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+    return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)} ${units[unit]}`;
+  };
+  const formatNumber = (value) => new Intl.NumberFormat('pt-BR').format(value);
+  async function request(url, options) {
+    const response = await fetch(url, options);
+    const body = await response.json();
+    if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
+    return body;
+  }
+  async function loadHealth() {
+    const dot = document.getElementById('status-dot');
+    try {
+      const data = await request('/health');
+      dot.classList.add('ok');
+      document.getElementById('status-text').textContent = 'API online';
+      document.getElementById('dataset-files').textContent = data.dataset_files;
+      document.getElementById('dataset-size').textContent = formatBytes(data.dataset_bytes);
+      document.getElementById('thread-limit').textContent = data.thread_limit;
+    } catch (error) {
+      document.getElementById('status-text').textContent = 'API indisponível';
+      document.getElementById('dataset-size').textContent = '—';
+    }
+  }
+  function showResult(id, data) {
+    const result = document.getElementById(id);
+    result.classList.remove('empty');
+    const lines = id === 'sum-result'
+      ? [
+          `${data.files.length} ${data.files.length === 1 ? 'arquivo lido' : 'arquivos lidos'}`,
+          `Total: ${formatBytes(data.total_bytes)}`,
+          ...data.files.map((file) => `${file.file} · ${formatBytes(file.bytes)} · soma ${formatNumber(file.sum)}`),
+        ]
+      : [
+          `Gravado: ${formatBytes(data.bytes)}`,
+          `Soma dos bytes: ${formatNumber(data.sum)}`,
+          `fsync: ${data.fsync ? 'Sim' : 'Não'}`,
+          `Arquivo mantido: ${data.kept ? 'Sim' : 'Não'}`,
+        ];
+    result.textContent = lines.join('\n');
+    document.getElementById(id === 'sum-result' ? 'sum-time' : 'write-time').textContent = `${data.elapsed_ms} ms`;
+  }
+  function showError(id, error) {
+    const result = document.getElementById(id);
+    result.classList.remove('empty');
+    result.textContent = `Erro: ${error.message}`;
+    document.getElementById(id === 'sum-result' ? 'sum-time' : 'write-time').textContent = '';
+  }
+  document.getElementById('sum-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button');
+    button.disabled = true;
+    try {
+      const params = new URLSearchParams({ files: document.getElementById('files').value, nocache: document.getElementById('nocache').checked });
+      showResult('sum-result', await request(`/sum?${params}`));
+    } catch (error) { showError('sum-result', error); }
+    finally { button.disabled = false; }
+  });
+  document.getElementById('write-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button');
+    button.disabled = true;
+    try {
+      const params = new URLSearchParams({ size_kb: document.getElementById('size-kb').value, fsync: document.getElementById('fsync').checked, keep: document.getElementById('keep').checked });
+      showResult('write-result', await request(`/write?${params}`, { method: 'POST' }));
+    } catch (error) { showError('write-result', error); }
+    finally { button.disabled = false; }
+  });
+  loadHealth();
+</script>
+</body>
+</html>
