@@ -13,7 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src ./src
 COPY docker-entrypoint.sh .
-RUN chmod +x docker-entrypoint.sh src/make_dataset.py
+RUN chmod +x docker-entrypoint.sh src/make_dataset.py \
+    && mkdir -p /logs /data/dataset /data/written
 
+VOLUME /logs
 EXPOSE 8082
 ENTRYPOINT ["./docker-entrypoint.sh"]
